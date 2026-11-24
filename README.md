@@ -94,6 +94,9 @@ no selection.
   owning element or connection in its callback can otherwise create an
   ownership cycle.
 - Timers are one-shot. `cancel()` releases their Lua callback immediately.
+- `addFd` and `removeFd` accept either a non-negative integer file descriptor or
+  an open Lua file handle. Disable stdio buffering (`file:setvbuf("no")`) on
+  handles passed to `addFd`, and call `removeFd` before closing the handle.
 - Close windows and release backend-dependent resources before destroying the
   backend. Once destroyed, that backend cannot be recreated in the same Lua
   state and backend-dependent wrappers reject further method calls.

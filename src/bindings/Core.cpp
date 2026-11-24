@@ -74,6 +74,24 @@ static int checkedInt(lua_State* state, int index) {
     return intNumber(state, index);
 }
 
+static int fileDescriptor(lua_State* state, int index) {
+    if (lua_isinteger(state, index)) {
+        const auto fd = intNumber(state, index);
+        if (fd < 0)
+            fail("argument " + std::to_string(index) + " must be a non-negative file descriptor");
+        return fd;
+    }
+    if (const auto* stream = sc<const luaL_Stream*>(luaL_testudata(state, index, LUA_FILEHANDLE))) {
+        if (!stream->f || !stream->closef)
+            fail("argument " + std::to_string(index) + " is a closed file");
+        const int fd = ::fileno(stream->f);
+        if (fd < 0)
+            fail("argument " + std::to_string(index) + " has no valid file descriptor");
+        return fd;
+    }
+    fail("argument " + std::to_string(index) + " must be a file descriptor or file handle");
+}
+
 static void pushString(lua_State* state, const std::string& value) {
     lua_pushlstring(state, value.data(), value.size());
 }
@@ -186,10 +204,8 @@ static int backendAddIdle(lua_State* state) {
 
 static int backendAddFd(lua_State* state) {
     expectArguments(state, 3, 3);
-    auto&      handle = backendHandle(state);
-    const auto fd     = checkedInt(state, 2);
-    if (fd < 0)
-        fail("argument 2 must be a non-negative file descriptor");
+    auto&      handle  = backendHandle(state);
+    const int  fd      = fileDescriptor(state, 2);
     const auto pending = std::make_shared<SPendingCallback>(SPendingCallback{.callback = callback(state, 3)});
     handle.backend->addFd(fd, [pending] {
         const auto cb = pending->callback;
@@ -202,10 +218,7 @@ static int backendAddFd(lua_State* state) {
 
 static int backendRemoveFd(lua_State* state) {
     expectArguments(state, 2, 2);
-    const auto fd = checkedInt(state, 2);
-    if (fd < 0)
-        fail("argument 2 must be a non-negative file descriptor");
-    backendObject(state)->removeFd(fd);
+    backendObject(state)->removeFd(fileDescriptor(state, 2));
     return 0;
 }
 

@@ -20,11 +20,11 @@ class CTestBackend : public IBackend {
     void setLogFn(LogFn&&) override {
         ;
     }
-    void addFd(int, std::function<void()>&&) override {
-        ;
+    void addFd(int fd, std::function<void()>&& callback) override {
+        m_addedFds.emplace_back(fd, std::move(callback));
     }
-    void removeFd(int) override {
-        ;
+    void removeFd(int fd) override {
+        m_removedFds.emplace_back(fd);
     }
     SP<ISystemIconFactory> systemIcons() override {
         return {};
@@ -47,6 +47,9 @@ class CTestBackend : public IBackend {
     std::expected<SP<ISessionLockState>, eSessionLockError> aquireSessionLock() override {
         return std::unexpected(LOCK_ERROR_PLATFORM_UNINITIALIZED);
     }
+
+    std::vector<std::pair<int, std::function<void()>>> m_addedFds;
+    std::vector<int>                                   m_removedFds;
 
   private:
     int& m_destroyed;
@@ -466,8 +469,55 @@ static void elementExchange() {
     check(rejected && lua_gettop(lua.state()) == 1, "retired state rejects push without changing stack");
 }
 
+static void fileDescriptorCallbacks() {
+    int        destroyed = 0;
+    const auto backend   = makeShared<CTestBackend>(destroyed);
+    CLuaState  lua;
+    lua.openLibs();
+    registerAllBindings(lua.state());
+    const auto ctx     = context(lua.state());
+    ctx->backendMode   = eBackendMode::OWNED;
+    ctx->backendActive = true;
+    pushObject(lua.state(), SBackend{.backend = backend, .context = ctx}, MT_BACKEND);
+    lua_setglobal(lua.state(), "backend");
+
+    run(lua.state(), R"(
+        calls = 0
+        backend:addFd(42, function() calls = calls + 1 end)
+        backend:removeFd(42)
+
+        testFile = assert(io.tmpfile())
+        backend:addFd(testFile, function() calls = calls + 10 end)
+        backend:removeFd(testFile)
+
+        local closed = assert(io.tmpfile())
+        closed:close()
+        assert(not pcall(function() backend:addFd(closed, function() end) end))
+        assert(not pcall(function() backend:removeFd(closed) end))
+        assert(not pcall(function() backend:addFd(-1, function() end) end))
+        assert(not pcall(function() backend:addFd("bad", function() end) end))
+        assert(not pcall(function() backend:removeFd("bad") end))
+    )");
+
+    lua_getglobal(lua.state(), "testFile");
+    const auto* stream = sc<const luaL_Stream*>(luaL_testudata(lua.state(), -1, LUA_FILEHANDLE));
+    check(stream != nullptr && stream->f != nullptr, "testFile is a valid Lua file handle");
+    const int expectedFd = ::fileno(stream->f);
+    lua_pop(lua.state(), 1);
+
+    check(backend->m_addedFds.size() == 2, "addFd recorded integer and file handle");
+    check(backend->m_addedFds[0].first == 42, "integer fd passed through");
+    check(backend->m_addedFds[1].first == expectedFd, "file handle fileno passed through");
+    check(backend->m_removedFds.size() == 2 && backend->m_removedFds[0] == 42 && backend->m_removedFds[1] == expectedFd, "removeFd recorded integer and file handle");
+
+    backend->m_addedFds[0].second();
+    backend->m_addedFds[1].second();
+    run(lua.state(), "assert(calls == 11); testFile:close()");
+}
+
 int main() {
     try {
+        fileDescriptorCallbacks();
         retirement();
         signalRetirement();
         retirementDuringCallback();
