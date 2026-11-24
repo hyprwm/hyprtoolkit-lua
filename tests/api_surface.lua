@@ -6,6 +6,8 @@ assert(ht.HT_SIZE_PERCENT == 1)
 assert(ht.HT_SIZE_AUTO == 2)
 assert(ht.HT_WINDOW_TOPLEVEL == 0)
 assert(ht.HT_MODIFIER_CTRL == 4)
+assert(ht.MOUSE_BUTTON_BACK == 4)
+assert(ht.MOUSE_BUTTON_FORWARD == 5)
 
 local vector = ht.vec2(12.5, -4)
 assert(vector.x == 12.5 and vector.y == -4)
