@@ -438,9 +438,11 @@ static constexpr luaL_Reg CONNECTION_METHODS[] = {
 
 void Hyprtoolkit::Lua::registerAllBindings(lua_State* state) {
     createModule(state);
-    lua_pushvalue(state, -1);
-    lua_setglobal(state, "hyprtoolkit");
+    luaL_getsubtable(state, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
+    lua_pushvalue(state, -2);
+    lua_setfield(state, -2, "hyprtoolkit");
     lua_pop(state, 1);
+    lua_setglobal(state, "hyprtoolkit");
 }
 
 int Hyprtoolkit::Lua::createModule(lua_State* state) {

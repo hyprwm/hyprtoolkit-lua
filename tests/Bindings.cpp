@@ -466,8 +466,32 @@ static void elementExchange() {
     check(rejected && lua_gettop(lua.state()) == 1, "retired state rejects push without changing stack");
 }
 
+static void requireRegistration() {
+    {
+        CLuaState lua;
+        lua.openLibs();
+        registerAllBindings(lua.state());
+        check(lua_gettop(lua.state()) == 0, "registerAllBindings preserves the stack");
+        run(lua.state(), R"(
+            assert(package.loaded.hyprtoolkit == hyprtoolkit)
+            assert(require("hyprtoolkit") == hyprtoolkit)
+        )");
+    }
+    {
+        CLuaState lua;
+        registerAllBindings(lua.state());
+        check(lua_gettop(lua.state()) == 0, "registerAllBindings without openLibs preserves the stack");
+        lua.openLibs();
+        run(lua.state(), R"(
+            assert(package.loaded.hyprtoolkit == hyprtoolkit)
+            assert(require("hyprtoolkit") == hyprtoolkit)
+        )");
+    }
+}
+
 int main() {
     try {
+        requireRegistration();
         retirement();
         signalRetirement();
         retirementDuringCallback();

@@ -1,4 +1,5 @@
 local ht = assert(hyprtoolkit)
+assert(require("hyprtoolkit") == ht)
 
 assert(type(ht.version) == "string")
 assert(ht.HT_SIZE_ABSOLUTE == 0)
