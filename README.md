@@ -12,8 +12,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-Hyprtoolkit 0.5.4, Lua 5.5, libdrm, CMake, and pkg-config are required. The
-Hyprtoolkit fixes through `9b4e630` are currently required.
+Hyprtoolkit 0.6.0, Lua 5.5, libdrm, CMake, and pkg-config are required.
 
 The build produces:
 

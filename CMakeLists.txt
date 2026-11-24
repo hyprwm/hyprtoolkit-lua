@@ -25,7 +25,7 @@ endif()
 
 find_package(PkgConfig REQUIRED)
 find_package(Lua 5.5 EXACT REQUIRED)
-pkg_check_modules(HYPRTOOLKIT REQUIRED IMPORTED_TARGET hyprtoolkit)
+pkg_check_modules(HYPRTOOLKIT REQUIRED IMPORTED_TARGET hyprtoolkit>=0.6.0)
 pkg_check_modules(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 
 set(HYPRTOOLKIT_LUA_SOURCES
